@@ -1,0 +1,84 @@
+[debug] Acquiring lock on file E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\project\target\.sbt-compilation-infos\root-compile\.sbt-idea-lock ...
+[error] -- [E040] Syntax Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\io\ApiDataFetcher.scala:101:0 
+[error] 101 |}
+[error]     |^
+[error]     |eof expected, but '}' found
+[error] -- [E008] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\Main\Main.scala:35:49 
+[error] 35 |        val solarForecastResult = ApiDataFetcher.fetchData[DataModel.PowerForecast](
+[error]    |                                  ^^^^^^^^^^^^^^^^^^^^^^^^
+[error]    |        value fetchData is not a member of object reps.io.ApiDataFetcher
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\Main\Main.scala:49:30 
+[error] 49 |            val predictions = data.sortBy(_.startTime).take(3)
+[error]    |                              ^^^^
+[error]    |                   Not found: data - did you mean Math? or perhaps math?
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\Main\Main.scala:56:30 
+[error] 56 |            println(s"Error: $error")
+[error]    |                              ^^^^^
+[error]    |                              Not found: error
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[error] -- [E008] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\Main\Main.scala:63:40 
+[error] 63 |        val windResult = ApiDataFetcher.fetchData[DataModel.WindMetrics](
+[error]    |                         ^^^^^^^^^^^^^^^^^^^^^^^^
+[error]    |        value fetchData is not a member of object reps.io.ApiDataFetcher
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\Main\Main.scala:77:29 
+[error] 77 |            val latestData = data.sortBy(_.endTime).takeRight(3)
+[error]    |                             ^^^^
+[error]    |                   Not found: data - did you mean Math? or perhaps math?
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\Main\Main.scala:84:30 
+[error] 84 |            println(s"Error: $error")
+[error]    |                              ^^^^^
+[error]    |                              Not found: error
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[error] -- [E008] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\Main\Main.scala:98:46 
+[error] 98 |        val HydropowerResult = ApiDataFetcher.fetchData[DataModel.HydropowerData](
+[error]    |                               ^^^^^^^^^^^^^^^^^^^^^^^^
+[error]    |        value fetchData is not a member of object reps.io.ApiDataFetcher
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\Main\Main.scala:115:27 
+[error] 115 |            val av01Data = data
+[error]     |                           ^^^^
+[error]     |                 Not found: data - did you mean Math? or perhaps math?
+[error]     |
+[error]     | longer explanation available when compiling with `-explain`
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\Main\Main.scala:142:31 
+[error] 142 |            println(s"Error: ${error}")
+[error]     |                               ^^^^^
+[error]     |                               Not found: error
+[error]     |
+[error]     | longer explanation available when compiling with `-explain`
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\io\ApiDataFetcher.scala:26:26 
+[error] 26 |    sslContext.init(null, trustAllCerts, new java.security.SecureRandom())
+[error]    |                          ^^^^^^^^^^^^^
+[error]    |                          Not found: trustAllCerts
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\io\ApiDataFetcher.scala:53:34 
+[error] 53 |      val response = request.send(backend)
+[error]    |                                  ^^^^^^^
+[error]    |                                  Not found: backend
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\io\ApiDataFetcher.scala:58:28 
+[error] 58 |          parseJsonResponse(rawJson, parseFunc)
+[error]    |                            ^^^^^^^
+[error]    |                            Not found: rawJson
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\io\ApiDataFetcher.scala:62:30 
+[error] 62 |          Left(s"HTTP Error: $error")
+[error]    |                              ^^^^^
+[error]    |                              Not found: error
+[error]    |
+[error]    | longer explanation available when compiling with `-explain`
+[warn] -- Warning: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\io\ApiDataFetcher.scala:78:2 
+[warn] 78 |  private object RawApiResponse {
+[warn]    |  ^
+[warn]    |  Line is indented too far to the right, or a `{` or `:` is missing
+[warn] one warning found
+[error] 14 errors found
+[debug] Releasing lock on file E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\project\target\.sbt-compilation-infos\root-compile\.sbt-idea-lock.
