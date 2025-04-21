@@ -1,4 +1,7 @@
-[debug] Acquiring lock on file E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\project\target\.sbt-compilation-infos\root-compile\.sbt-idea-lock ...
+[debug] > Exec(compile, None, None)
+[debug] Evaluating tasks: Compile / compile
+[debug] Running task... Cancel: Signal, check cycles: false, forcegc: true
+[info] compiling 9 Scala sources to E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\target\scala-3.3.5\classes ...
 [error] -- [E006] Not Found Error: E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\src\main\scala\reps\io\ApiDataFetcher.scala:5:7 
 [error] 5 |import cats.implicits._
 [error]   |       ^^^^
@@ -96,4 +99,6 @@
 [error]    |
 [error]    | longer explanation available when compiling with `-explain`
 [error] 5 errors found
-[debug] Releasing lock on file E:\学习\大三上学期\algorithms\Renewable Energy Plant System_Scala\WindForecastSystem\project\target\.sbt-compilation-infos\root-compile\.sbt-idea-lock.
+[error] (Compile / compileIncremental) Compilation failed
+[error] Total time: 3 s, completed 2025年4月21日 19:17:26
+[debug] > Exec(idea-shell, None, None)

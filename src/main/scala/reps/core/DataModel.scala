@@ -20,24 +20,14 @@ object DataModel {
     implicit val rw: ReadWriter[PowerForecast] = macroRW
   }
 
-  case class WindMetrics(
+  case class WindSolarMetrics(
                           startTime: Instant,
                           endTime: Instant,
                           powerOutput: Double
                         )
 
-  object WindMetrics {
-    implicit val rw: ReadWriter[WindMetrics] = macroRW
+  object WindSolarMetrics {
+    implicit val rw: ReadWriter[WindSolarMetrics] = macroRW
   }
-
-  case class HydropowerData(
-                             startTime: Instant,
-                             endTime: Instant,
-                             productionType: String,
-                             value: Double
-                           )
-
-  object HydropowerData {
-    implicit val rw: ReadWriter[HydropowerData] = macroRW
-  }
+  
 }

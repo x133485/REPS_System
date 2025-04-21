@@ -1,9 +1,9 @@
 package reps.Main
 
-import reps.io.ApiDataFetcher
-import reps.core.DataModel
+import reps.io.{ApiDataFetcher, CSVDataStorage}
+import reps.core.DataModel.{PowerForecast, WindSolarMetrics}
 
-import java.time.{Instant, LocalDate, ZoneId}
+import java.time.{Instant, ZoneId}
 import java.time.temporal.ChronoUnit
 import java.time.format.DateTimeFormatter
 import scala.io.StdIn.readLine
@@ -11,156 +11,101 @@ import scala.util.Try
 
 object Main {
 
-  def main(args: Array[String]): Unit = {
-    val apiKey = "8dfae6133423485ea120af36075f78fb"
+  private val apiKey = "8dfae6133423485ea120af36075f78fb"
+  private val urlSolar = "https://data.fingrid.fi/api/datasets/248/data"
+  private val urlWind = "https://data.fingrid.fi/api/datasets/181/data"
+  private val urlHydro191 = "https://data.fingrid.fi/api/datasets/191/data" // NEW
+  private val zone = ZoneId.systemDefault()
+  private val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(zone)
 
-    println("Here is the menu:")
-    println("1 - Solar Forecast")
-    println("2 - Wind Energy Data")
-    println("3 - Hydropower Data (AV01)")
+  private var lastData: List[WindSolarMetrics] = Nil
+  private var lastType:  String                = ""   // "solar" | "wind" | "hydro"
 
-    val choice = getValidChoice()
+  def main(args: Array[String]): Unit =
+    var running = true
+    while running do
+      println()
+      println("===== Renewable Energy Console =====")
+      println("1  - Solar power forecast (dataset 248)")
+      println("2  - Wind generation        (dataset 181)")
+      println("3  - Hydro generation       (dataset 191)")
+      println("4  - Store last data to CSV")
+      println("0  - Exit")
+      print("Your choice: ")
 
+      val choice = Try(readLine().trim.toInt).getOrElse(-1)
+
+      choice match
+        case 0 =>
+          running = false
+          println("Bye!")
+
+        case 1 => runSolar()
+        case 2 => runWindOrHydro(urlWind, "Wind")
+        case 3 => runWindOrHydro(urlHydro191, "Hydro")
+        case 4 => storeToCsv()
+        case _ => println("Invalid choice.")
+
+  /* ---------- Business functions ---------- */
+
+  /** 15-minute solar forecast */
+  private def runSolar(): Unit =
     val now = Instant.now()
+    val res = ApiDataFetcher.fetchData[PowerForecast](
+      urlSolar, apiKey, now, now.plus(45, ChronoUnit.MINUTES),
+      r => PowerForecast(Instant.parse(r.startTime), Instant.parse(r.endTime), r.value)
+    )
 
-    val windApiUrl = "https://data.fingrid.fi/api/datasets/181/data"
-    val solarForecastApiUrl = "https://data.fingrid.fi/api/datasets/248/data"
-    val hydropowerApiUrl = "https://data.fingrid.fi/api/datasets/362/data"
-
-    choice match {
-      case 1 =>
-        val solar_startTime = now
-        val solar_endTime = now.plus(45, ChronoUnit.MINUTES)
-
-        val solarForecastResult = ApiDataFetcher.fetchData[DataModel.PowerForecast](
-          url = solarForecastApiUrl,
-          apiKey = apiKey,
-          startTime = solar_startTime,
-          endTime = solar_endTime,
-          parseFunc = raw => DataModel.PowerForecast(
-            startTime = Instant.parse(raw.startTime),
-            endTime = Instant.parse(raw.endTime),
-            powerOutput = raw.value
-          )
-        )
-
-        solarForecastResult match {
-          case Right(data) =>
-            val predictions = data.sortBy(_.startTime).take(3)
-            println("=== The latest 2 solar power forecasts (15 minutes interval) ===")
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("UTC+3"))
-            predictions.foreach { d =>
-              println(s"Time interval: ${formatter.format(d.startTime)} ~ ${formatter.format(d.endTime)}, Predicted power generation: ${d.powerOutput} megawatts")
-            }
-          case Left(error) =>
-            println(s"Error: $error")
+    res match
+      case Right(list) =>
+        val forecasts = list.sortBy(_.startTime).takeRight(3)
+        println(s"Latest Solar forecasts (${forecasts.size} × 15 min):")
+        forecasts.foreach { d =>
+          println(f"${fmt.format(d.startTime)} ~ ${fmt.format(d.endTime)} : ${d.powerOutput}%.2f MW")
         }
+        lastData = forecasts.map(d => WindSolarMetrics(d.startTime, d.endTime, d.powerOutput))
+        lastType = "solar"
+      case Left(err) => println(s"Error: $err")
 
-      case 2 =>
-        val endTime = now
-        val startTime = endTime.minus(9, ChronoUnit.MINUTES)
+  /** Reusable wind/new hydropower data printing */
+  private def runWindOrHydro(url: String, label: String): Unit =
+    val end = Instant.now()
+    val start = end.minus(9, ChronoUnit.MINUTES) // 3 × 3‑minute points
+    val res = ApiDataFetcher.fetchData[WindSolarMetrics](
+      url, apiKey, start, end,
+      r => WindSolarMetrics(Instant.parse(r.startTime), Instant.parse(r.endTime), r.value)
+    )
 
-        val windResult = ApiDataFetcher.fetchData[DataModel.WindMetrics](
-          url = windApiUrl,
-          apiKey = apiKey,
-          startTime = startTime,
-          endTime = endTime,
-          parseFunc = raw => DataModel.WindMetrics(
-            startTime = Instant.parse(raw.startTime),
-            endTime = Instant.parse(raw.endTime),
-            powerOutput = raw.value
-          )
-        )
+    res match
+      case Right(list) =>
+        val dataPoints = list.sortBy(_.endTime).takeRight(3)
+        println(s"Latest $label output (${dataPoints.size} × 3 min):")
+        dataPoints.foreach{d =>
+          println(f"${fmt.format(d.startTime)} ~ ${fmt.format(d.endTime)} : ${d.powerOutput}%.2f kW")}
+        lastData = dataPoints
+        lastType = label.toLowerCase
+      case Left(err) => println(s"Error: $err")
 
-        windResult match {
-          case Right(data) =>
-            val latestData = data.sortBy(_.endTime).takeRight(3)
-            println("=== The latest 2 wind power generation data (3 minutes interval) ===")
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
-            latestData.foreach { d =>
-              println(s"Time range: ${formatter.format(d.startTime)} ~ ${formatter.format(d.endTime)}, Power Generation: ${d.powerOutput} kW")
-            }
-          case Left(error) =>
-            println(s"Error: $error")
+  /* ---------- Input ---------- */
+  private def choice(): Int =
+    print("Enter choice: ")
+    Try(readLine().trim.toInt).getOrElse(0)
+
+  private def storeToCsv():Unit =
+    if lastData.isEmpty then
+      println("No cache data. Run option 1/2/3 first.")
+    else
+      println("Need to edit data before saving? (y/N): ")
+      val edited = if readLine().trim.toLowerCase == "y" then
+        lastData.map { d =>
+          print(s"${fmt.format(d.startTime)} value ${d.powerOutput} -> ")
+          val in = readLine().trim
+          val newVal = Try(in.toDouble).getOrElse(d.powerOutput)
+          d.copy(powerOutput = newVal)
         }
+      else lastData
 
-      case 3 =>
-        //The data renew every month.
-        val zoneId = ZoneId.systemDefault()
-        val now = LocalDate.now(zoneId)
-        val firstDayOfLastMonth = now.minusMonths(1).withDayOfMonth(1)
-        val lastDayOfLastMonth = firstDayOfLastMonth.plusMonths(1).minusDays(1)
-
-        // Convert to Instant
-        val startTime = firstDayOfLastMonth.atStartOfDay(zoneId).toInstant
-        val endTime = lastDayOfLastMonth.atTime(23, 59, 59).atZone(zoneId).toInstant
-
-        val HydropowerResult = ApiDataFetcher.fetchData[DataModel.HydropowerData](
-          url = hydropowerApiUrl,
-          apiKey = apiKey,
-          startTime = startTime,
-          endTime = endTime,
-          parseFunc = raw => DataModel.HydropowerData(
-            startTime = Instant.parse(raw.startTime),
-            endTime = Instant.parse(raw.endTime),
-            productionType = raw.additionalJson
-              .flatMap(_.get("ProductionType"))
-              .getOrElse("Unknown"),
-            value = raw.value
-          )
-        )
-
-        HydropowerResult match {
-          case Right(data) =>
-            val av01Data = data
-              .filter(_.productionType == "AV01")
-              .sortBy(_.startTime)
-
-            println(s"=== AV01 Hydropower Production (${firstDayOfLastMonth.getMonthValue}-${firstDayOfLastMonth.getYear}) ===")
-
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-              .withZone(zoneId)
-
-            if (av01Data.isEmpty) {
-              println("No AV01 data found for last month")
-            } else {
-              // 计算总量并转换单位
-              val totalKWH = av01Data.map(_.value).sum
-              val totalMWH = "%.1f".format(totalKWH / 1000)
-
-              println(s"Total Production: $totalMWH MWh")
-              println("\nDetailed Records:")
-
-              av01Data.foreach { d =>
-                val mwhValue = "%.3f".format(d.value / 1000)
-                val localTime = formatter.format(d.startTime)
-                println(s"[$localTime] ${d.value} KWH ($mwhValue MWh)")
-              }
-            }
-
-          case Left(error) =>
-            println(s"Error: ${error}")
-        }
-
-      case _ =>
-        println("Invalid choice.")
-    }
-
-
-  }
-
-  def getValidChoice(): Int = {  //I am not sure is if this is valid
-    while (true) {
-      println("Please enter your choice:")
-      val input = readLine()
-      Try(input.toInt).toOption match {
-        case Some(num) if num >= 1 && num <= 3 =>
-          return num
-        case _ =>
-          println("Invalid input.")
-          return 0
-      }
-    }
-    throw new RuntimeException("unreachable code")
-  }
+      val fileName = s"${lastType}.csv"
+      CSVDataStorage.saveToCSV(edited,fileName)
+      println(s"Saved to $fileName")
 }
