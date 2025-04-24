@@ -4,6 +4,7 @@ import models._
 import java.time._
 import java.time.temporal.WeekFields
 import java.util.Locale
+import selflearned.FunctorImplementation.Functor
 
 object DataAnalyzer {
   // Filter data by time periods
@@ -105,5 +106,56 @@ object DataAnalyzer {
   
   def searchByStatus(data: List[EnergyData], status: String): List[EnergyData] = {
     data.filter(_.status.toLowerCase == status.toLowerCase)
+  }
+  
+  /**
+   * Apply a functor-based transformation to energy data
+   * Demonstrates how functors enable consistent transformations across different contexts
+   */
+  def transformData[F[_]](data: F[EnergyData])(transformation: Double => Double)
+    (implicit F: Functor[F]): F[EnergyData] = {
+    REPSFunctor.transformEnergyOutput(data)(transformation)
+  }
+
+  /**
+   * Scale all energy output values by a factor
+   * Demonstrates practical application of functors for uniform data scaling
+   */
+  def scaleEnergyOutputs(data: List[EnergyData], factor: Double): List[EnergyData] = {
+    import selflearned.FunctorImplementation.Functor.listFunctor
+    REPSFunctor.scaleEnergyOutput(data)(factor)
+  }
+
+  /**
+   * Normalize energy values to a 0-100 scale
+   * Useful for visualizations and comparisons across different sources
+   */
+  def normalizeValues(data: List[EnergyData]): List[EnergyData] = {
+    if (data.isEmpty) return List()
+    
+    // Find min and max values
+    val outputs = data.map(_.energyOutput)
+    val minValue = outputs.min
+    val maxValue = outputs.max
+    val range = maxValue - minValue
+    
+    // If all values are the same, return the original data
+    if (range == 0) return data
+    
+    import selflearned.FunctorImplementation.Functor.listFunctor
+    
+    // Use functor to transform each value to 0-100 scale
+    REPSFunctor.transformEnergyOutput(data) { value =>
+      ((value - minValue) / range) * 100
+    }
+  }
+
+  /**
+   * Apply threshold limits to energy values
+   * Useful for filtering outliers or enforcing constraints
+   */
+  def applyThresholds(data: List[EnergyData], minValue: Option[Double], maxValue: Option[Double]): List[EnergyData] = {
+    import selflearned.FunctorImplementation.Functor.listFunctor
+    REPSFunctor.applyThreshold(data)(minValue, maxValue)
   }
 }

@@ -50,6 +50,40 @@ object FingridClient {
    * Fetch energy data from Fingrid API for a specific energy source within a time range
    */
   def fetchEnergyData(source: EnergySource, startTime: Long, endTime: Long): List[EnergyData] = {
+    // For large date ranges, split into monthly chunks
+    if (endTime - startTime > 30 * 24 * 3600) { // More than 30 days
+      println(s"Large date range detected (${(endTime - startTime)/(24*3600)} days). Splitting into monthly chunks...")
+      
+      // Split into monthly chunks
+      val oneMonthSeconds = 30 * 24 * 3600L
+      
+      // Create sequence of start times, one month apart
+      val startTimes = Iterator.iterate(startTime)(t => t + oneMonthSeconds)
+        .takeWhile(_ < endTime)
+        .toList
+        
+      // For each start time, calculate end time (either one month later or the original end time)
+      val timeChunks = startTimes.map(start => 
+        (start, math.min(start + oneMonthSeconds, endTime))
+      )
+      
+      println(s"Fetching data in ${timeChunks.size} chunks...")
+      
+      // Process each chunk and combine results
+      timeChunks.flatMap { case (chunkStart, chunkEnd) => 
+        println(s"Fetching chunk: ${formatTimestamp(chunkStart)} to ${formatTimestamp(chunkEnd)}")
+        val result = fetchSingleChunk(source, chunkStart, chunkEnd)
+        println(s"Got ${result.size} records for this chunk")
+        result
+      }
+    } else {
+      // For smaller ranges, use the original method
+      fetchSingleChunk(source, startTime, endTime)
+    }
+  }
+
+  // Update the fetchSingleChunk method with better error handling and retries
+  private def fetchSingleChunk(source: EnergySource, startTime: Long, endTime: Long): List[EnergyData] = {
     val variableId = source match {
       case Solar => solarVariableId
       case Wind => windVariableId
@@ -60,31 +94,85 @@ object FingridClient {
     val startTimeStr = formatTimestamp(startTime)
     val endTimeStr = formatTimestamp(endTime)
     
-    def fetchPage(page: Int): List[FingridEvent] = {
+    def fetchPage(page: Int, retriesLeft: Int = 3): List[FingridEvent] = {
+      if (retriesLeft <= 0) {
+        println(s"Failed to fetch data after multiple attempts for ${source}. Please check network connection or API availability.")
+        return Nil
+      }
+      
       // Build API request
       val request = basicRequest
         .header("x-api-key", apiKey)
         .header("Accept", "application/json")
-        .get(uri"$apiBaseUrl/datasets/$variableId/data?startTime=$startTimeStr&endTime=$endTimeStr&page=$page&pageSize=10000")
+        .get(uri"$apiBaseUrl/datasets/$variableId/data?startTime=$startTimeStr&endTime=$endTimeStr&page=$page&pageSize=1000")
       
       try {
-        val response = Await.result(request.send(backend), 10.seconds)
+        println(s"Requesting page $page for ${source}...")
+        val response = Await.result(request.send(backend), 30.seconds) // Increased timeout
         
         response.body match {
           case Right(jsonString) => 
+            // Check for rate limiting
+            if (jsonString.contains("rate limit") || response.code.code == 429) {
+              println(s"Rate limit hit for Fingrid API. Waiting 10 seconds before retry...")
+              Thread.sleep(10000)
+              return fetchPage(page, retriesLeft - 1)
+            }
+            
             val cursor = parser.parse(jsonString).getOrElse(Json.Null).hcursor
             val events = cursor.downField("data").as[List[FingridEvent]].getOrElse(Nil)
-            val lastPage = cursor.downField("pagination").get[Int]("lastPage").getOrElse(1)
-            val currentPage = cursor.downField("pagination").get[Int]("currentPage").getOrElse(page)
-            if (currentPage < lastPage) {
-              events ++ fetchPage(currentPage + 1)
+            
+            // Check if data structure is unexpected
+            if (events.isEmpty && !jsonString.contains("\"data\":[]")) {
+              println(s"Unexpected data format received. API may have changed. Response: ${jsonString.take(200)}...")
+              Nil
             } else {
-              events
+              val lastPage = cursor.downField("pagination").get[Int]("lastPage").getOrElse(1)
+              val currentPage = cursor.downField("pagination").get[Int]("currentPage").getOrElse(page)
+              println(s"Retrieved ${events.size} events (page $currentPage of $lastPage)")
+              
+              if (currentPage < lastPage) {
+                events ++ fetchPage(currentPage + 1)
+              } else {
+                events
+              }
             }
-          case Left(_) => Nil
+            
+          case Left(error) =>
+            println(s"Error with Fingrid API response (attempt ${4-retriesLeft}/3): $error")
+            // Handle common error codes
+            if (error.contains("404")) {
+              println("Resource not found - please check that the variable ID is correct")
+              Nil
+            } else if (error.contains("403")) {
+              println("Authentication failed - please check your API key")
+              Nil
+            } else {
+              // For other errors, retry
+              println(s"Retrying in 5 seconds...")
+              Thread.sleep(5000)
+              fetchPage(page, retriesLeft - 1)
+            }
         }
       } catch {
-        case _: Exception => Nil
+        case e: java.net.SocketTimeoutException => 
+          println(s"Network timeout (attempt ${4-retriesLeft}/3). Retrying in 5 seconds...")
+          Thread.sleep(5000)
+          fetchPage(page, retriesLeft - 1)
+          
+        case e: java.net.UnknownHostException =>
+          println(s"Network error: Unable to reach the Fingrid API server. Please check your internet connection.")
+          Nil
+          
+        case e: Exception => 
+          println(s"Exception when fetching data from Fingrid API: ${e.getMessage}")
+          if (retriesLeft > 1) {
+            println(s"Retrying in 5 seconds...")
+            Thread.sleep(5000)
+            fetchPage(page, retriesLeft - 1)
+          } else {
+            Nil
+          }
       }
     }
     
@@ -143,11 +231,11 @@ object FingridClient {
    * Determine status based on energy output value
    */
   private def determineStatus(output: Double, source: EnergySource): String = {
-    // Thresholds based on observed Fingrid API data
+    // Lower thresholds based on more realistic Fingrid API data
     val thresholds = source match {
-      case Solar => (300.0, 500.0)   // Observed around 400+ MW
-      case Wind => (1800.0, 2200.0)  // Observed around 2000+ MW
-      case Hydro => (1700.0, 1900.0) // Observed around 1800+ MW
+      case Solar => (100.0, 400.0)   // Lower solar threshold
+      case Wind => (800.0, 2000.0)   // Lower wind threshold
+      case Hydro => (1000.0, 1800.0) // Lower hydro threshold
     }
     
     if (output < thresholds._1) "Low"

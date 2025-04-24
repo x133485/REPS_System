@@ -139,6 +139,7 @@ object ConsoleUI {
     println("6. Filter by Month")
     println("7. Search by Status")
     println("8. Back to Main Menu")
+    println("9. Functor Operations")
     print("Enter your choice: ")
   }
   
